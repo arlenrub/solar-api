@@ -1,0 +1,19 @@
+# Ignora o ambiente virtual local
+.venv/
+venv/
+env/
+
+# Ignora caches do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Ignora arquivos de controle de versão
+.git/
+.gitignore
+
+# Ignora logs e arquivos temporários locais
+*.log
+.DS_Store
