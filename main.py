@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from calculadora import (
     calcular_economia_mensal,
@@ -11,6 +12,15 @@ app = FastAPI(
     title="SolarTech API",
     description="Motor de cálculos de Payback, ROI e economia de energia solar fotovoltaica.",
     version="1.0.0"
+)
+
+# Configuração do Middleware de CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permite requisições de qualquer origem (inclusive localhost do Next.js)
+    allow_credentials=True,
+    allow_methods=["*"],  # Permite todos os verbos HTTP (GET, POST, etc.)
+    allow_headers=["*"],  # Permite todos os cabeçalhos
 )
 
 class SimulacaoSolar(BaseModel):
