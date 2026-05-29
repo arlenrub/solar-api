@@ -17,10 +17,15 @@ app = FastAPI(
 # Configuração do Middleware de CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permite requisições de qualquer origem (inclusive localhost do Next.js)
+    allow_origins=[
+        "https://solartechdigital.techguiadigital.com",  # Subdomínio da API (Cloudflare)
+        "https://solartechdigital.vercel.app",           # Projeto na Vercel
+        "http://localhost:3000",                          # Ambiente local de desenvolvimento
+        "*",                                              # MVP: libera para todas as origens
+    ],
     allow_credentials=True,
-    allow_methods=["*"],  # Permite todos os verbos HTTP (GET, POST, etc.)
-    allow_headers=["*"],  # Permite todos os cabeçalhos
+    allow_methods=["*"],   # Permite todos os verbos HTTP (GET, POST, etc.)
+    allow_headers=["*"],   # Permite todos os cabeçalhos
 )
 
 class SimulacaoSolar(BaseModel):
