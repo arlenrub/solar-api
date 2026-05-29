@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from typing import Optional
 from calculadora import (
     calcular_economia_mensal,
     calcular_economia_anual,
@@ -27,6 +28,8 @@ app.add_middleware(
     allow_methods=["*"],   # Permite todos os verbos HTTP (GET, POST, etc.)
     allow_headers=["*"],   # Permite todos os cabeçalhos
 )
+
+# ─── Models ───────────────────────────────────────────────────────────────────
 
 class SimulacaoSolar(BaseModel):
     potencia_kwp: float = Field(
@@ -55,22 +58,19 @@ class SimulacaoSolar(BaseModel):
     )
 
 class ResultadoSimulacao(BaseModel):
-    economia_mensal: float = Field(
-        ..., 
-        description="Economia mensal estimada em R$"
-    )
-    economia_anual: float = Field(
-        ..., 
-        description="Economia anual estimada em R$"
-    )
-    payback_anos: float = Field(
-        ..., 
-        description="Tempo de payback simples em anos"
-    )
-    roi_porcentagem: float = Field(
-        ..., 
-        description="Retorno sobre investimento (ROI) de 20 anos em %"
-    )
+    economia_mensal: float = Field(..., description="Economia mensal estimada em R$")
+    economia_anual: float = Field(..., description="Economia anual estimada em R$")
+    payback_anos: float = Field(..., description="Tempo de payback simples em anos")
+    roi_porcentagem: float = Field(..., description="Retorno sobre investimento (ROI) de 20 anos em %")
+
+# Modelo simplificado para o endpoint v1 (frontend envia só potencia_kwp + tarifa_kwh)
+class SimulacaoSimplificada(BaseModel):
+    potencia_kwp: float = Field(..., gt=0, description="Potência instalada em kWp", json_schema_extra={"example": 5.0})
+    tarifa_kwh: float = Field(..., gt=0, description="Tarifa de energia em R$/kWh", json_schema_extra={"example": 0.85})
+    geracao_kwh_mes: Optional[float] = Field(None, description="Geração mensal em kWh (calculada automaticamente se não informada)")
+    custo_instalacao: Optional[float] = Field(None, description="Custo de instalação em R$ (calculado automaticamente se não informado)")
+
+# ─── Rotas legadas (mantidas para compatibilidade) ────────────────────────────
 
 @app.get("/")
 def health_check():
@@ -94,5 +94,36 @@ def simular_projeto(dados: SimulacaoSolar):
             payback_anos=payback,
             roi_porcentagem=roi
         )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# ─── Rotas v1 (usadas pelo frontend Next.js) ──────────────────────────────────
+
+@app.get("/api/v1/health")
+def health_v1():
+    return {"status": "ok", "service": "SolarTechDigital API"}
+
+@app.post("/api/v1/simulate/savings")
+def simulate_savings(dados: SimulacaoSimplificada):
+    try:
+        # Valores padrão calculados se não informados
+        # Estimativa: 1 kWp gera ~120 kWh/mês (média nordeste Brasil)
+        geracao = dados.geracao_kwh_mes if dados.geracao_kwh_mes else dados.potencia_kwp * 120
+        # Estimativa: R$ 3.000 por kWp instalado
+        custo = dados.custo_instalacao if dados.custo_instalacao else dados.potencia_kwp * 3000
+
+        economia_mensal = calcular_economia_mensal(geracao, dados.tarifa_kwh)
+        economia_anual = calcular_economia_anual(economia_mensal)
+        payback = calcular_payback_simples(custo, economia_anual)
+        roi = calcular_roi(custo, economia_anual)
+
+        return {
+            "economia_mes_reais": round(economia_mensal, 2),
+            "economia_anual_reais": round(economia_anual, 2),
+            "payback_anos": round(payback, 2),
+            "roi_porcentagem": round(roi, 2),
+            "geracao_kwh_mes": round(geracao, 2),
+            "custo_instalacao": round(custo, 2),
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
